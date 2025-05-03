@@ -1,7 +1,7 @@
-import Login from "./pages/Login";
+import AuthForm from "./pages/AuthForm";
 
 function App() {
-  return <Login />;
+  return <AuthForm />;
 }
 
 export default App;
