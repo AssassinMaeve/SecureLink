@@ -8,8 +8,8 @@ import {
 } from "firebase/auth";
 import { db } from "../db/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import "../style/AuthForm.scss";
-
 const AuthForm = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [username, setUsername] = useState("");
@@ -18,17 +18,28 @@ const AuthForm = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [loading, setLoading] = useState(true); // To handle loading state
 
-  // Check email verification status on auth state change
+  const navigate = useNavigate(); // Initialize useNavigate
+
+  // Monitor auth state to check if the user is authenticated
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsEmailVerified(user.emailVerified);
+        setLoading(false); // Set loading to false after checking auth state
+
+        // Redirect to HomePage if the email is verified
+        if (user.emailVerified) {
+          navigate("/home");
+        }
+      } else {
+        setLoading(false); // Set loading to false if user is not authenticated
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,21 +68,30 @@ const AuthForm = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
+  
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
+  
+      // 🔄 Reload the user to get the latest emailVerified status
+      await user.reload();
+  
       if (!user.emailVerified) {
         setError("Please verify your email before logging in.");
         return;
       }
-
+  
+      navigate("/home");
       alert("Login successful!");
     } catch (err: any) {
       setError(err.message);
     }
   };
+  
+
+  if (loading) {
+    return <div>Loading...</div>; // You can show a loading spinner or message while the state is being checked
+  }
 
   return (
     <div className="main">
@@ -84,43 +104,44 @@ const AuthForm = () => {
       />
 
       <div className="signup">
-        {!isEmailVerified ? (
-          <form onSubmit={handleSignup}>
-            <label htmlFor="chk" aria-hidden="true">Sign Up</label>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Phone Number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            {error && <p className="error">{error}</p>}
-            <button type="submit">Sign Up</button>
-          </form>
-        ) : (
+        {/* Only show email verification message AFTER signup, not during signup process */}
+        {isSignup && !isEmailVerified && (
           <p>We've sent you an email verification link. Please verify your email before logging in.</p>
         )}
+
+        <form onSubmit={handleSignup}>
+          <label htmlFor="chk" aria-hidden="true">Sign Up</label>
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Phone Number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          {error && <p className="error">{error}</p>}
+          <button type="submit">Sign Up</button>
+        </form>
       </div>
 
       <div className="login">
