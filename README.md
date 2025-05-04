@@ -62,7 +62,7 @@
 
 * User data is securely stored using **Firebase Authentication**, **Firestore**, and **Storage**.
 * Documents are accessible only to authenticated and verified users.
-* Aadhaar integration (if used) is handled in accordance with Indian data privacy guidelines.
+* Aadhaar integration is handled in accordance with Indian data privacy guidelines.
 
 ## 📌 Future Enhancements
 
