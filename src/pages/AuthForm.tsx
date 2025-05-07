@@ -105,7 +105,7 @@ const AuthForm = () => {
 
       <div className="signup">
         {/* Only show email verification message AFTER signup, not during signup process */}
-        {isSignup && !isEmailVerified && (
+        {!isSignup && isEmailVerified && (
           <p>We've sent you an email verification link. Please verify your email before logging in.</p>
         )}
 
