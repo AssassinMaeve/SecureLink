@@ -1,54 +1,78 @@
-# React + TypeScript + Vite
+# 📁 SecureLink
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**SecureLink** is a secure digital document management platform that allows Indian citizens to store, manage, and share important documents such as mark sheets, PAN cards, passports, and more. It leverages Aadhaar-based identification and email verification to ensure data security, authenticity, and easy access across multiple government and private services.
 
-Currently, two official plugins are available:
+## 🔐 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+* **User Registration & Login**
+  Register with email and password. Email verification ensures account authenticity.
 
-## Expanding the ESLint configuration
+* **Document Upload**
+  Upload important documents like mark sheets, Aadhaar, PAN, certificates, etc., in a secure digital format.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+* **Update/Delete Documents**
+  Easily manage your documents with update and delete functionality.
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+* **Document Sharing**
+  Securely share your documents online via a unique link. Reduces the need for physical copies.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+* **My Profile**
+  View and manage your personal details and linked Aadhaar information.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+* **Email Verification**
+  Users must verify their email before accessing document services to prevent unauthorized access.
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+## 🧩 Technology Stack
+
+* **Frontend**: React.js
+* **Backend**: Firebase Authentication & Firestore
+* **Authentication**: Firebase Email/Password + Email Verification
+* **Storage**: Firebase Storage for file uploads
+* **Design**: SCSS
+
+## 🔧 Setup Instructions
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/yourusername/securelink.git
+   cd securelink
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Firebase Configuration**
+
+   * Create a Firebase project from [Firebase Console](https://console.firebase.google.com/)
+   * Enable **Email/Password Authentication**
+   * Set up **Cloud Firestore** and **Firebase Storage**
+   * Replace Firebase config in `/db/firebase.js` with your project's credentials
+
+4. **Run the app locally**
+
+   ```bash
+   npm run dev
+   ```
+
+## 🔐 Security & Privacy
+
+* User data is securely stored using **Firebase Authentication**, **Firestore**, and **Storage**.
+* Documents are accessible only to authenticated and verified users.
+* Aadhaar integration is handled in accordance with Indian data privacy guidelines.
+
+## 📌 Future Enhancements
+
+* Aadhaar-based OTP login
+* Offline backup support
+* AI-based document classification
+* Government API integrations (Passport, Railways, etc.)
+
+## 📄 License
+
+MIT License
+
+---
