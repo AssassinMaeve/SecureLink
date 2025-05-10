@@ -1,4 +1,3 @@
-import React from "react";
 import { auth } from "../db/firebase"; // Ensure firebase auth is correctly linked
 import "../style/NavBar.scss"; // Ensure this is correctly linked
 
