@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage"; // Create this component
 import ProfilePage from "./pages/ProfilePage"; // Create this component
 
 function App() {
+  
   return (
       <Routes>
         <Route path="/" element={<AuthForm />} />
