@@ -8,6 +8,7 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  addDoc,
 } from "firebase/firestore";
 import {
   getDownloadURL,
@@ -23,6 +24,7 @@ interface Document {
   filePath: string;
   fileName: string;
   downloadURL: string;
+  docType: string; // Add docType for checking duplicates
 }
 
 const ProfilePage: React.FC = () => {
@@ -55,6 +57,7 @@ const ProfilePage: React.FC = () => {
           filePath: data.filePath,
           fileName: data.fileName,
           downloadURL: "",
+          docType: data.docType, // Add docType here
         };
       });
 
@@ -78,6 +81,19 @@ const ProfilePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check if a document with the same type exists
+  const checkIfDocumentExists = async (docType: string) => {
+    if (!auth.currentUser?.uid) return false;
+
+    const q = query(
+      collection(db, "documents"),
+      where("uid", "==", auth.currentUser.uid),
+      where("docType", "==", docType)
+    );
+    const querySnapshot = await getDocs(q);
+    return !querySnapshot.empty;
   };
 
   // Delete Document from Firestore and Firebase Storage
@@ -124,6 +140,42 @@ const ProfilePage: React.FC = () => {
     } catch (error) {
       console.error("Error updating document:", error);
       setError("Failed to update document.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Document Upload
+  const handleUpload = async (newFile: File, docType: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Check if document of this type already exists
+      const exists = await checkIfDocumentExists(docType);
+      if (exists) {
+        setError(`You have already uploaded a document of type "${docType}".`);
+        setLoading(false);
+        return;
+      }
+
+      const newRef = ref(storage, `documents/${auth.currentUser?.uid}/${newFile.name}`);
+      await uploadBytes(newRef, newFile);
+      console.log("Uploaded new file to storage:", newRef.fullPath);
+
+      // Add document metadata to Firestore
+      const docRef = await addDoc(collection(db, "documents"), {
+        uid: auth.currentUser?.uid,
+        docType,
+        fileName: newFile.name,
+        filePath: newRef.fullPath,
+      });
+      console.log("Document metadata added to Firestore:", docRef.id);
+
+      fetchDocuments();
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      setError("Failed to upload document.");
     } finally {
       setLoading(false);
     }
