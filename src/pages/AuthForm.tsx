@@ -10,6 +10,7 @@ import { db } from "../db/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 import "../style/AuthForm.scss";
+
 const AuthForm = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [username, setUsername] = useState("");
@@ -25,16 +26,19 @@ const AuthForm = () => {
   // Monitor auth state to check if the user is authenticated
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user);  // Log user auth state
       if (user) {
         setIsEmailVerified(user.emailVerified);
         setLoading(false); // Set loading to false after checking auth state
 
         // Redirect to HomePage if the email is verified
         if (user.emailVerified) {
+          console.log("User email is verified, navigating to /home.");
           navigate("/home");
         }
       } else {
         setLoading(false); // Set loading to false if user is not authenticated
+        console.log("User is not authenticated.");
       }
     });
 
@@ -46,21 +50,27 @@ const AuthForm = () => {
     setError("");
 
     try {
+      console.log("Attempting signup with email:", email);
       // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       // Send email verification link
+      console.log("Sending email verification to:", user.email);
       await sendEmailVerification(user);
       alert("A verification email has been sent to your email address.");
 
       // Store user details including phone number in Firestore
+      console.log("Storing user details in Firestore:", { username, email, phone });
       await setDoc(doc(db, "users", user.uid), {
         username,
         email,
         phone,  // Storing phone number
       });
+
+      console.log("User successfully signed up.");
     } catch (err: any) {
+      console.error("Error during signup:", err);
       setError(err.message);
     }
   };
@@ -68,28 +78,33 @@ const AuthForm = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-  
+
     try {
+      console.log("Attempting login with email:", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-  
+
       // 🔄 Reload the user to get the latest emailVerified status
+      console.log("Reloading user to get the latest emailVerified status.");
       await user.reload();
-  
+
       if (!user.emailVerified) {
+        console.log("User email is not verified.");
         setError("Please verify your email before logging in.");
         return;
       }
-  
+
+      console.log("Login successful, navigating to /home.");
       navigate("/home");
       alert("Login successful!");
     } catch (err: any) {
+      console.error("Error during login:", err);
       setError(err.message);
     }
   };
-  
 
   if (loading) {
+    console.log("Loading user auth state...");
     return <div>Loading...</div>; // You can show a loading spinner or message while the state is being checked
   }
 
