@@ -236,6 +236,22 @@ const ProfilePage: React.FC = () => {
               />
             ))
           )}
+          <div className="upload-section">
+            <h3>Upload a Document</h3>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const docType = prompt("Enter document type:");
+                  if (docType) {
+                    handleUpload(file, docType);
+                  }
+                }
+              }}
+            />
+          </div>
         </div>
       </main>
     </div>

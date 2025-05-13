@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { auth } from "../db/firebase";
 import "../style/NavBar.scss";
 
