@@ -5,13 +5,13 @@ import ProfilePage from "./pages/ProfilePage"; // Create this component
 
 function App() {
   return (
-    <BrowserRouter basename="/SecureLink">  
+      
       <Routes>
         <Route path="/" element={<AuthForm />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Routes>
-    </BrowserRouter>
+    
   );
 }
 
