@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import AuthForm from "./pages/AuthForm";
 import HomePage from "./pages/HomePage"; // Create this component
 import ProfilePage from "./pages/ProfilePage"; // Create this component
