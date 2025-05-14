@@ -7,7 +7,7 @@ import './index.css'; // Optional, if you're using Tailwind or CSS
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter basename='/SecureLink'>  {/* Wrap your App component with BrowserRouter */}
+    <BrowserRouter>  {/* Wrap your App component with BrowserRouter */}
       <App />
     </BrowserRouter>
   </React.StrictMode>
