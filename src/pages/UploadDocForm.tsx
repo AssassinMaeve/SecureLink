@@ -207,23 +207,28 @@ const UploadDocForm = () => {
         />
       </div>
 
-      <div className="form-group">
-        <input
-          id="document"
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
-          onChange={handleFileChange}
-          required
-          disabled={isUploading}
-          aria-label="Select document to upload"
-        />
-        {file && (
-          <div className="file-info">
-            <span>Selected: {file.name}</span>
-            <span>Size: {(file.size / 1024).toFixed(2)}KB</span>
-          </div>
-        )}
-      </div>
+  <div className="form-group">
+  <input
+    type="file"
+    id="document"
+    accept=".pdf,.jpg,.jpeg,.png"
+    onChange={handleFileChange}
+    required
+    disabled={isUploading}
+    aria-label="Select document to upload"
+    style={{ display: "none" }} // Hides default input
+  />
+  <label htmlFor="document" className="custom-file-label">
+    {file ? "Change File" : "Choose File"}
+  </label>
+  {file && (
+    <div className="file-info">
+      <span>{file.name}</span>
+      <span>{(file.size / 1024).toFixed(2)}KB</span>
+    </div>
+  )}
+</div>
+
 
       {isUploading && (
         <div className="upload-progress">
