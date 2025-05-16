@@ -8,7 +8,6 @@ import {
   doc,
   deleteDoc,
   updateDoc,
-  addDoc,
 } from "firebase/firestore";
 import {
   getDownloadURL,
@@ -24,22 +23,29 @@ interface Document {
   filePath: string;
   fileName: string;
   downloadURL: string;
-  docType: string; // Add docType for checking duplicates
+  docType: string;
+  uploadDate?: string;
 }
 
 const ProfilePage: React.FC = () => {
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Enhanced logging function
+  const log = (message: string, data?: any) => {
+    console.log(`[ProfilePage] ${message}`, data || '');
+  };
 
   // Fetch user documents from Firestore
   const fetchDocuments = async () => {
-    if (!auth.currentUser?.uid) return;
+    if (!auth.currentUser?.uid) {
+      log("No user UID available");
+      return;
+    }
 
-    console.log("Fetching documents for user:", auth.currentUser.uid);
+    log("Fetching documents for user", { uid: auth.currentUser.uid });
     setLoading(true);
-    setError(null);
 
     try {
       const q = query(
@@ -47,17 +53,18 @@ const ProfilePage: React.FC = () => {
         where("uid", "==", auth.currentUser.uid)
       );
       const querySnapshot = await getDocs(q);
-      console.log("Query returned", querySnapshot.docs.length, "documents");
+      log("Documents query returned", { count: querySnapshot.docs.length });
 
       const documents: Document[] = querySnapshot.docs.map((docSnap) => {
         const data = docSnap.data();
-        console.log("Document data:", data);
+        log("Processing document", { id: docSnap.id, data });
         return {
           id: docSnap.id,
           filePath: data.filePath,
           fileName: data.fileName,
           downloadURL: "",
-          docType: data.docType, // Add docType here
+          docType: data.docType,
+          uploadDate: data.uploadDate || new Date().toISOString(),
         };
       });
 
@@ -65,208 +72,254 @@ const ProfilePage: React.FC = () => {
         try {
           const fileRef = ref(storage, doc.filePath);
           const downloadURL = await getDownloadURL(fileRef);
-          console.log(`Download URL for ${doc.fileName}:`, downloadURL);
+          log(`Download URL for ${doc.fileName}`, { downloadURL });
           return { ...doc, downloadURL };
         } catch (error) {
-          console.warn(`Skipping document "${doc.fileName}" due to missing file.`, error);
+          log(`Skipping document "${doc.fileName}" due to missing file`, error);
           return null;
         }
       });
 
       const docsWithURLs = (await Promise.all(documentPromises)).filter(Boolean) as Document[];
+      
+      // Sort by upload date, newest first
+      docsWithURLs.sort((a, b) => {
+        return new Date(b.uploadDate || "").getTime() - new Date(a.uploadDate || "").getTime();
+      });
+      
       setDocs(docsWithURLs);
+      log("Documents state updated", { count: docsWithURLs.length });
     } catch (err) {
-      console.error("Error fetching documents:", err);
-      setError("Failed to load documents.");
+      log("Error fetching documents", err);
     } finally {
       setLoading(false);
+      log("Finished loading documents");
     }
-  };
-
-  // Check if a document with the same type exists
-  const checkIfDocumentExists = async (docType: string) => {
-    if (!auth.currentUser?.uid) return false;
-
-    const q = query(
-      collection(db, "documents"),
-      where("uid", "==", auth.currentUser.uid),
-      where("docType", "==", docType)
-    );
-    const querySnapshot = await getDocs(q);
-    return !querySnapshot.empty;
   };
 
   // Delete Document from Firestore and Firebase Storage
   const deleteDocument = async (docId: string, filePath: string) => {
-    console.log("Attempting to delete document:", docId, filePath);
+    if (!confirm("Are you sure you want to delete this document?")) {
+      log("Document deletion cancelled by user");
+      return;
+    }
+    
+    log("Attempting to delete document", { docId, filePath });
+    setLoading(true);
+    
     try {
       const fileRef = ref(storage, filePath);
       await deleteObject(fileRef);
-      console.log("Deleted file from storage:", filePath);
+      log("Deleted file from storage", { filePath });
 
       await deleteDoc(doc(db, "documents", docId));
-      console.log("Deleted document from Firestore:", docId);
+      log("Deleted document from Firestore", { docId });
 
       setDocs(docs.filter((doc) => doc.id !== docId));
+      log("Updated local documents state after deletion");
     } catch (error) {
-      console.error("Error deleting document:", error);
-      setError("Failed to delete document.");
+      log("Error deleting document", error);
+    } finally {
+      setLoading(false);
+      log("Finished delete operation");
     }
   };
 
   // Update Document
   const updateDocument = async (docToUpdate: Document, newFile: File) => {
-    console.log("Updating document:", docToUpdate, "with file:", newFile.name);
+    log("Updating document", { docId: docToUpdate.id, fileName: newFile.name });
     setLoading(true);
-    setError(null);
 
     try {
       const oldRef = ref(storage, docToUpdate.filePath);
       await deleteObject(oldRef);
-      console.log("Deleted old file from storage:", docToUpdate.filePath);
+      log("Deleted old file from storage", { filePath: docToUpdate.filePath });
 
       const newRef = ref(storage, `documents/${auth.currentUser?.uid}/${newFile.name}`);
       await uploadBytes(newRef, newFile);
-      console.log("Uploaded new file to storage:", newRef.fullPath);
+      log("Uploaded new file to storage", { path: newRef.fullPath });
 
       const docRef = doc(db, "documents", docToUpdate.id);
       await updateDoc(docRef, {
         fileName: newFile.name,
         filePath: newRef.fullPath,
+        uploadDate: new Date().toISOString(),
       });
-      console.log("Updated Firestore document:", docToUpdate.id);
+      log("Updated Firestore document", { docId: docToUpdate.id });
 
-      fetchDocuments();
+      await fetchDocuments();
     } catch (error) {
-      console.error("Error updating document:", error);
-      setError("Failed to update document.");
+      log("Error updating document", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handle Document Upload
-  const handleUpload = async (newFile: File, docType: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Check if document of this type already exists
-      const exists = await checkIfDocumentExists(docType);
-      if (exists) {
-        setError(`You have already uploaded a document of type "${docType}".`);
-        setLoading(false);
-        return;
-      }
-
-      const newRef = ref(storage, `documents/${auth.currentUser?.uid}/${newFile.name}`);
-      await uploadBytes(newRef, newFile);
-      console.log("Uploaded new file to storage:", newRef.fullPath);
-
-      // Add document metadata to Firestore
-      const docRef = await addDoc(collection(db, "documents"), {
-        uid: auth.currentUser?.uid,
-        docType,
-        fileName: newFile.name,
-        filePath: newRef.fullPath,
-      });
-      console.log("Document metadata added to Firestore:", docRef.id);
-
-      fetchDocuments();
-    } catch (error) {
-      console.error("Error uploading document:", error);
-      setError("Failed to upload document.");
-    } finally {
-      setLoading(false);
+      log("Finished update operation");
     }
   };
 
   // Share Document
   const shareDocument = (doc: Document) => {
-    console.log("Sharing document:", doc.fileName);
+    log("Sharing document", { fileName: doc.fileName });
     if (doc.downloadURL) {
-      alert(`Share this document: ${doc.downloadURL}`);
+      navigator.clipboard.writeText(doc.downloadURL)
+        .then(() => {
+          log("Document URL copied to clipboard");
+          alert("Document URL copied to clipboard!");
+        })
+        .catch((err) => {
+          log("Could not copy URL", err);
+          alert(`Share this document: ${doc.downloadURL}`);
+        });
     } else {
-      console.warn("Download URL is missing for:", doc.fileName);
+      log("Download URL missing for document", { fileName: doc.fileName });
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  // Get file type icon
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    if (extension === 'pdf') {
+      return <i className="fas fa-file-pdf"></i>;
+    } else if (['jpg', 'jpeg', 'png', 'gif'].includes(extension || '')) {
+      return <i className="fas fa-file-image"></i>;
+    } else if (['doc', 'docx'].includes(extension || '')) {
+      return <i className="fas fa-file-word"></i>;
+    } else if (['xls', 'xlsx'].includes(extension || '')) {
+      return <i className="fas fa-file-excel"></i>;
+    } else {
+      return <i className="fas fa-file"></i>;
     }
   };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        console.log("User logged in:", user.email);
+        log("User logged in", { email: user.email });
         setUserEmail(user.email);
         fetchDocuments();
       } else {
-        console.log("User not logged in.");
+        log("User not logged in");
       }
     });
-    return () => unsubscribe();
+    return () => {
+      log("Cleaning up auth listener");
+      unsubscribe();
+    };
   }, []);
 
   return (
     <div className="profile-container">
-      <Navbar />
-      <main className="profile-content">
+      <Navbar/>
+      <div className="profile-content">
         <div className="profile-header">
-          <h2>Profile</h2>
+          <h2>My Profile</h2>
           {userEmail ? (
-            <p id="user-email">Email: {userEmail}</p>
+            <p id="user-email">{userEmail}</p>
           ) : (
             <p>Please log in to view your profile.</p>
           )}
         </div>
 
         <div className="documents-section">
-          <h3>Your Documents</h3>
+          <h3>My Documents</h3>
           {loading ? (
-            <p>Loading documents...</p>
-          ) : error ? (
-            <p>{error}</p>
+            <div className="loading">Loading documents...</div>
           ) : docs.length === 0 ? (
-            <p>No documents found.</p>
+            <div className="no-documents">
+              <i className="fas fa-folder-open"></i>
+              <p>No documents found.</p>
+            </div>
           ) : (
-            docs.map((doc) => (
-              <DocumentItem
-                key={doc.id}
-                doc={doc}
-                onDelete={() => deleteDocument(doc.id, doc.filePath)}
-                onShare={() => shareDocument(doc)}
-                onUpdate={(file) => updateDocument(doc, file)}
-              />
-            ))
+            <div className="document-list">
+              {docs.map((doc) => (
+                <div className="document-item" key={doc.id}>
+                  <div className="document-info">
+                    {doc.downloadURL ? (
+                      <img 
+                        src={doc.downloadURL} 
+                        alt={doc.fileName}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement?.classList.add('file-icon-fallback');
+                        }}
+                      />
+                    ) : (
+                      <div className="file-icon">{getFileIcon(doc.fileName)}</div>
+                    )}
+                    <div className="document-details">
+                      <span className="document-title">{doc.fileName}</span>
+                      <span className="document-type">{doc.docType}</span>
+                      <span className="document-date">Uploaded on {formatDate(doc.uploadDate)}</span>
+                    </div>
+                  </div>
+                  <div className="document-actions">
+                    {doc.downloadURL && (
+                      <a 
+                        href={doc.downloadURL} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn primary-btn"
+                      >
+                        <i className="fas fa-download"></i>
+                        Download
+                      </a>
+                    )}
+                    <button
+                      className="btn share-btn"
+                      onClick={() => shareDocument(doc)}
+                    >
+                      <i className="fas fa-share-alt"></i>
+                      Share
+                    </button>
+                    <DocumentUpdateButton 
+                      onUpdate={(file) => updateDocument(doc, file)}
+                    />
+                    <button
+                      className="btn delete-btn"
+                      onClick={() => deleteDocument(doc.id, doc.filePath)}
+                    >
+                      <i className="fas fa-trash-alt"></i>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-          <div className="upload-section">
-            <h3>Upload a Document</h3>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const docType = prompt("Enter document type:");
-                  if (docType) {
-                    handleUpload(file, docType);
-                  }
-                }
-              }}
-            />
-          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
 
-interface DocumentItemProps {
-  doc: Document;
-  onDelete: () => void;
-  onShare: () => void;
+interface DocumentUpdateButtonProps {
   onUpdate: (file: File) => void;
 }
 
-const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDelete, onShare, onUpdate }) => {
+const DocumentUpdateButton: React.FC<DocumentUpdateButtonProps> = ({ onUpdate }) => {
   const [showInput, setShowInput] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleUpdate = () => {
+    setShowInput(true);
+    setTimeout(() => {
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+    }, 100);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -278,24 +331,21 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDelete, onShare, onU
   };
 
   return (
-    <div className="document-item">
-      <p>{doc.fileName}</p>
-      <img src={doc.downloadURL} alt={doc.fileName} width={100} />
-      <div>
-        <button className="update-btn" onClick={() => setShowInput(!showInput)}>
-          Update
-        </button>
-        <button className="delete-btn" onClick={onDelete}>
-          Delete
-        </button>
-        <button className="share-btn" onClick={onShare}>
-          Share
-        </button>
-      </div>
+    <>
+      <button className="btn primary-btn" onClick={handleUpdate}>
+        <i className="fas fa-sync-alt"></i>
+        Update
+      </button>
       {showInput && (
-        <input type="file" accept="image/*,.pdf" onChange={handleFileChange} />
+        <input 
+          ref={fileInputRef}
+          type="file" 
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
       )}
-    </div>
+    </>
   );
 };
 
